@@ -1,11 +1,4 @@
 # Finalized GTOA implementation (exactly per Zhang & Jin 2020 pseudocode) + benchmark tests
-# This is the "final" version: it fixes the student-phase self-learning term by using
-# X_before_teacher (the population at start of the teacher phase), preserves block
-# evaluation accounting (Eq.12 and Eq.13), implements Eq.(2),(5),(6),(7),(8),(9) exactly,
-# and runs benchmark tests on Sphere, Rastrigin, Rosenbrock, Ackley.
-#
-# Run is deterministic via seed. Outputs numeric summary and progress plots.
-# Requires: numpy, matplotlib, pandas
 
 from typing import Callable, Tuple, Optional
 import numpy as np
