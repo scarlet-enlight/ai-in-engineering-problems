@@ -1,12 +1,15 @@
-from typing import Callable, Tuple, Optional
+"""
+Group Teaching Optimization Algorithm (GTOA) implementation
+"""
+
+from typing import Callable, Tuple
 import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
+
 
 class GTOA:
     def __init__(self, func: Callable[[np.ndarray], float], dim: int,
-                 bounds: Tuple[float, float], population_size: int = 40,
-                 Tmax: int = 5000, seed: int = 42):
+                 bounds: Tuple[float, float], population_size: int = 50,
+                 Tmax: int = None, seed: int = None):
         self.func = func
         self.D = dim
         lb, ub = bounds
@@ -15,42 +18,53 @@ class GTOA:
         self.N = population_size
         if self.N % 2 != 0:
             raise ValueError("Population size must be even (paper divides population into equal halves).")
-        self.Tmax = Tmax
+        # According to the article: if Tmax is not transmitted, set 5000*D for unimodal
+        self.Tmax = (5000 * self.D) if (Tmax is None) else Tmax
         self.rng = np.random.default_rng(seed)
-        # state
+
+        # State
         self.X = np.zeros((self.N, self.D))
         self.f = np.full(self.N, np.inf)
-        self.Tcurrent = 0
+        self.Tcurrent = 0  # number of objective function evaluations (FE)
         self.G = None
         self.G_f = np.inf
-        # history
+
+        # History
         self.history_T = []
         self.history_best = []
         self.history_iter = []
 
+    def evaluate_population(self):
+        """Re-evaluates all individuals in the population"""
+        self.f = np.array([self.func(x) for x in self.X])
+
+    # Initialization (Eq.11, Eq.12) — Evaluate the initial population, Tcurrent += N
     def initialize_population(self):
-        # Eq.(11)
         self.X = self.lb + (self.ub - self.lb) * self.rng.random((self.N, self.D))
-        # Step 2: evaluate all and Tcurrent += N (Eq.12)
-        for i in range(self.N):
-            self.f[i] = float(self.func(self.X[i]))
+        self.evaluate_population()  # Evaluate the initial population
         self.Tcurrent += self.N
         best_idx = int(np.argmin(self.f))
         self.G = self.X[best_idx].copy()
         self.G_f = float(self.f[best_idx])
 
-    def teacher_allocation(self):
-        # Eq.(9): pick first three best and form teacher = x_first if f(x_first) <= f(mean_three) else mean_three
+
+    # Teacher allocation (Eq.9)
+    # Compare f(x_first) and f(mean_three); FE counted later (+2N+1 as in paper)
+    def teacher_allocation(self) -> np.ndarray:
         order = np.argsort(self.f)
         x_first = self.X[order[0]]
         x_second = self.X[order[1]]
         x_third = self.X[order[2]]
         mean_three = (x_first + x_second + x_third) / 3.0
-        # compute f for first and mean_three (we compute them; block counting is handled separately)
-        f_first = float(self.func(x_first))
-        f_mean = float(self.func(mean_three))
-        return x_first.copy() if f_first <= f_mean else mean_three.copy()
+        # Use the known self.f[order[0]] and calculate f(mean_three) for comparison
+        f_mean = self.func(mean_three)
+        # We don't increment Tcurrent here - we consider it part of 2N+1 at the end of the step, as in the article
+        if self.f[order[0]] <= f_mean:
+            return x_first.copy()
+        else:
+            return mean_three.copy()
 
+    # Ability grouping (Divide the population into good and bad by fitness)
     def ability_grouping(self):
         order = np.argsort(self.f)
         half = self.N // 2
@@ -58,7 +72,8 @@ class GTOA:
         bad_idx = order[half:].tolist()
         return good_idx, bad_idx
 
-    def teacher_phase_good(self, T, good_idx):
+    # Teacher phase for good (Eq.2)
+    def teacher_phase_good(self, T_teacher: np.ndarray, good_idx):
         if len(good_idx) == 0:
             return
         M = np.mean(self.X[good_idx], axis=0)
@@ -66,13 +81,11 @@ class GTOA:
             a = self.rng.random()
             b = self.rng.random()
             c = self.rng.random()
-            F = int(self.rng.choice([1,2]))
+            F = int(self.rng.choice([1, 2]))
             x_i = self.X[idx]
-            # Eq.(2)
-            x_new = x_i + a * (T - F * (b * M + c * x_i))
+            x_new = x_i + a * (T_teacher - F * (b * M + c * x_i))
             x_new = np.clip(x_new, self.lb, self.ub)
-            f_new = float(self.func(x_new))
-            # acceptance Eq.(6)
+            f_new = self.func(x_new)
             if f_new < self.f[idx]:
                 self.X[idx] = x_new
                 self.f[idx] = f_new
@@ -80,18 +93,16 @@ class GTOA:
                     self.G_f = f_new
                     self.G = x_new.copy()
 
-    def teacher_phase_bad(self, T, bad_idx):
+    # Teacher phase for bad (Eq.5)
+    def teacher_phase_bad(self, T_teacher: np.ndarray, bad_idx):
         if len(bad_idx) == 0:
             return
         for idx in bad_idx:
             d = self.rng.random()
             x_i = self.X[idx]
-            # Eq.(5)
-            x_new = x_i + 2.0 * d * (T - x_i)
+            x_new = x_i + 2.0 * d * (T_teacher - x_i)
             x_new = np.clip(x_new, self.lb, self.ub)
-            f_new = float(self.func(x_new))
-
-            # 6?
+            f_new = self.func(x_new)
             if f_new < self.f[idx]:
                 self.X[idx] = x_new
                 self.f[idx] = f_new
@@ -99,8 +110,8 @@ class GTOA:
                     self.G_f = f_new
                     self.G = x_new.copy()
 
+    # Student phase (Eq.7-8)
     def student_phase(self, group_idx, X_before_teacher):
-        # group_idx: list of indices to do student-phase for
         if len(group_idx) == 0:
             return
         for idx in group_idx:
@@ -109,18 +120,16 @@ class GTOA:
             j = int(self.rng.choice(peers))
             e = self.rng.random()
             g = self.rng.random()
-            x_teacher_i = self.X[idx].copy()      # after teacher-phase update
+            x_teacher_i = self.X[idx].copy()
             x_teacher_j = self.X[j].copy()
-            x_old_i = X_before_teacher[idx].copy()  # IMPORTANT: value at start of teacher-phase (x_i^t)
-            # Eq.(7): choose structure based on current fitness comparison
+            x_old_i = X_before_teacher[idx].copy()
             if self.f[idx] < self.f[j]:
                 x_student = x_teacher_i + e * (x_teacher_i - x_teacher_j) + g * (x_teacher_i - x_old_i)
             else:
                 x_student = x_teacher_i + e * (x_teacher_j - x_teacher_i) + g * (x_teacher_i - x_old_i)
             x_student = np.clip(x_student, self.lb, self.ub)
-            f_student = float(self.func(x_student))
+            f_student = self.func(x_student)
             f_teacher_i = float(self.f[idx])
-            # Eq.(8): choose better
             if f_student < f_teacher_i:
                 self.X[idx] = x_student
                 self.f[idx] = f_student
@@ -128,38 +137,38 @@ class GTOA:
                     self.G_f = f_student
                     self.G = x_student.copy()
 
-    def optimize(self, verbose: bool = False, iter_limit: int = 1000):
-        # Steps 1 & 2
+    # Main loop; accounting for FE per item: +N at initialization, + (2N + 1) after iteration
+    def optimize(self, verbose: bool = False, iter_limit: int = 1_000_000):
         self.initialize_population()
         iter_count = 0
         while self.Tcurrent <= self.Tmax:
             iter_count += 1
-            # Step 4: teacher allocation (Eq.9)
-            T = self.teacher_allocation()
-            # Step 5: ability grouping
+            T_teacher = self.teacher_allocation()
             good_idx, bad_idx = self.ability_grouping()
-            # Save X before teacher-phase for student-phase self-learning (x_i^t)
             X_before_teacher = self.X.copy()
-            # Step 6.1: teacher phase for good and student-phase for good (Eq.2, Eq.7-8)
-            self.teacher_phase_good(T, good_idx)
+
+            # Teacher & student phases
+            self.teacher_phase_good(T_teacher, good_idx)
             self.student_phase(good_idx, X_before_teacher)
-            # Step 6.2: teacher phase for bad and student-phase for bad (Eq.5, Eq.7-8)
-            self.teacher_phase_bad(T, bad_idx)
+            self.teacher_phase_bad(T_teacher, bad_idx)
             self.student_phase(bad_idx, X_before_teacher)
-            # Step 8: re-evaluate population (Eq.13 block accounting)
-            for i in range(self.N):
-                self.f[i] = float(self.func(self.X[i]))
+            
+            # Re-evaluate the entire population (vectorially) - equivalent to Eq.13
+            self.evaluate_population()
+            # According to the article: Tcurrent += 2N + 1 (blockwise)
             self.Tcurrent += (2 * self.N + 1)
-            # update global best
+
+            # Update best global
             best_idx = int(np.argmin(self.f))
             if self.f[best_idx] < self.G_f:
                 self.G_f = float(self.f[best_idx])
                 self.G = self.X[best_idx].copy()
-            # record history
+            
+            # Recording the history
             self.history_T.append(self.Tcurrent)
             self.history_best.append(self.G_f)
             self.history_iter.append(iter_count)
-            if verbose and (iter_count % 10 == 0):
+            if verbose and (iter_count % 50 == 0):
                 print(f"Iter {iter_count}, Tcurrent={self.Tcurrent}, best={self.G_f:.6g}")
             if iter_count >= iter_limit:
                 break
