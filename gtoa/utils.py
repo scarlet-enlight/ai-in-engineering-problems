@@ -11,7 +11,7 @@ D = 10                    # Dimension
 POP_SIZE = 50             # N = 50 (in the article)
 RUNS = 10                 # Number of independent runs (the article uses 30)
 TMAX = 5000 * D           # Tmax = 5000 * D for unimodal
-EPS_LOG = 1e-300          # Clipping before log10 (to avoid receiving -inf)
+EPS_LOG = 1e-800         # Clipping before log10 (to avoid receiving -inf)
 SAVE_DIR = "gtoa_results" # Directory for csv saving csv and plot
 
 

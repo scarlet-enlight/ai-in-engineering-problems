@@ -153,8 +153,7 @@ class GTOA:
             self.teacher_phase_bad(T_teacher, bad_idx)
             self.student_phase(bad_idx, X_before_teacher)
             
-            # Re-evaluate the entire population (vectorially) - equivalent to Eq.13
-            self.evaluate_population()
+            
             # According to the article: Tcurrent += 2N + 1 (blockwise)
             self.Tcurrent += (2 * self.N + 1)
 
