@@ -7,7 +7,7 @@ It includes benchmark tests and visualization tools for performance comparison.
 
 | Algorithm | Description | Original Paper / Author | Link |
 |-----------|-------------|------------------------|------|
-| **Group Teaching Optimization Algorithm (GTOA)** | An improved group teaching optimization algorithm for global function optimization. | Yiying Zhang & Zhigang Jin, Group Teaching Optimization Algorithm: A novel metaheuristic method for solving global optimization problems | [Link]([https://doi.org/10.7551/mitpress/1090.001.0001](https://www.sciencedirect.com/science/article/pii/S0957417420300725?via%3Dihub#sec0023)) |
+| **Group Teaching Optimization Algorithm (GTOA)** | An improved group teaching optimization algorithm for global function optimization. | Yiying Zhang & Zhigang Jin, Group Teaching Optimization Algorithm: A novel metaheuristic method for solving global optimization problems | [Link](https://www.sciencedirect.com/science/article/pii/S0957417420300725?via%3Dihub#sec0023) |
 
 ## Features
 - Implementations of classical and modern optimization algorithms  
