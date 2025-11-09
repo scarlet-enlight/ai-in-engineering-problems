@@ -3,11 +3,8 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 
-<<<<<<< Updated upstream
 from gtoa import GTOA
-=======
-from gtoa.algorithm import GTOA
-from gtoa.benchmark_functions import sphere, rastrigin, rosenbrock, beale, bukin
+from test_functions import TEST_FUNCTIONS
 
 def run_single_experiment(func, bounds, dim, N, I, Tmax, seed, verbose=False):
     opt = GTOA(func, dim, bounds, population_size=N, Tmax=Tmax, seed=seed)
@@ -100,7 +97,6 @@ def plot_results(df, function_name):
     plt.xticks(range(len(pivot.columns)), pivot.columns)
     plt.yticks(range(len(pivot.index)), pivot.index)
     plt.show()
->>>>>>> Stashed changes
 
 
 # Parameters (specified in the acrticle)
