@@ -6,6 +6,7 @@ Launch benchmark tests for GTOA algorithm
 
 import time
 import numpy as np
+import os
 import pandas as pd
 
 from test_functions import TEST_FUNCTIONS
@@ -16,6 +17,9 @@ ITER_STOP_MODE = 'iter'  # 'iter' or 'FE' mode
 n_runs = 10 # Number of runs (repetitions)
 N_values = [10, 20, 40, 80] # Population values
 I_values = [5, 10, 20, 40, 60, 80] # Iteration values
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Absolute path to the directory where this script is located
+SAVE_DIR = os.path.join(BASE_DIR, "gtoa_results") # Directory for saving summary results
 
 
 # Main benchmark function
@@ -126,9 +130,15 @@ def run_benchmark(GTOA_class):
     # Summary table:
     all_summary_df = pd.DataFrame(summary_rows)
     all_summary_df = all_summary_df.fillna("")
-    all_summary_df.to_csv("gtoa_summary.csv", index=False)
-    print("Saved all_summary to: gtoa_summary.csv")
+
+    # Ensure directory exists
+    os.makedirs(SAVE_DIR, exist_ok=True)
+
+    csv_path = os.path.join(SAVE_DIR, "summary_results.csv")
+    all_summary_df.to_csv(csv_path, index=False)
+    print(f"Saved all_summary to: {csv_path}")
     return all_summary_df
+
 
 # Run testbench
 if __name__ == "__main__":
