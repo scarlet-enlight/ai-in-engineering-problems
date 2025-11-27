@@ -1,6 +1,6 @@
 # Optimization Algorithm for the "AI in Engineering Problems" Course
 
-This repository contains implementation of the Group Teaching Optimization Algorithm (GTOA) used for solving engineering and AI-related problems.  
+This repository contains implementation of Group Teaching Optimization Algorithm (GTOA) used for solving engineering and AI-related problems.  
 It includes benchmark tests and visualization tools for performance comparison.
 
 ## Implemented Algorithm
